@@ -191,9 +191,22 @@ export function UiLayout({
         <Toaster position="bottom-right" />
       </div>
       <footer className="footer footer-center p-4 bg-base-300 text-base-content">
-        <aside>
-          Powered By <img src="https://www.jito.wtf/logos/jitoLabs.svg" />
-        </aside>
+        <div className="flex no-wrap">
+          <div className="flex no-wrap">
+            Powered By{' '}
+            <img
+              className="ml-1 w-12"
+              src="https://www.jito.wtf/logos/jitoLabs.svg"
+            />
+          </div>
+          |
+          <a
+            className="text-white"
+            href="https://github.com/dberget/jito-jup-swap"
+          >
+            Github
+          </a>
+        </div>
       </footer>
     </div>
   );

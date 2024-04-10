@@ -1,16 +1,23 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { WalletButton } from '../solana/solana-provider';
 import * as React from 'react';
 import { ReactNode, Suspense, useEffect, useRef } from 'react';
 
 import { Link, useLocation } from 'react-router-dom';
 
-import { AccountChecker } from '../account/account-ui';
-import {
-  ClusterChecker,
-  ClusterUiSelect,
-  ExplorerLink,
-} from '../cluster/cluster-ui';
+import { ExplorerLink } from '../cluster/cluster-ui';
 import toast, { Toaster } from 'react-hot-toast';
+import { useConnection, useWallet } from '@solana/wallet-adapter-react';
+import { sendTransactionJito } from '../swap/swap-data';
+import {
+  TransactionInstruction,
+  PublicKey,
+  AddressLookupTableAccount,
+  TransactionMessage,
+  SystemProgram,
+  VersionedTransaction,
+  PublicKeyInitData,
+} from '@solana/web3.js';
 
 export function UiLayout({
   children,
@@ -19,11 +26,136 @@ export function UiLayout({
   children: ReactNode;
   links: { label: string; path: string }[];
 }) {
+  const { publicKey: walletPublicKey } = useWallet();
   const { pathname } = useLocation();
+  const passthroughWalletContextState = useWallet();
+  const { connection } = useConnection();
+
+  const onRequestIxCallback: any = async (ixAndCb: {
+    meta: any;
+    instructions: any;
+    onSubmitWithIx: any;
+  }) => {
+    const { meta, instructions, onSubmitWithIx } = ixAndCb;
+
+    if (
+      !walletPublicKey ||
+      !passthroughWalletContextState.wallet ||
+      !passthroughWalletContextState ||
+      !passthroughWalletContextState.signTransaction
+    )
+      return;
+
+    const {
+      setupInstructions, // Setup missing ATA for the users.
+      swapInstruction: swapInstructionPayload, // The actual swap instruction.
+      cleanupInstruction, // Unwrap the SOL if `wrapAndUnwrapSol = true`.
+      addressLookupTableAddresses, // The lookup table addresses that you can use if you are using versioned transaction.
+    } = instructions;
+
+    const deserializeInstruction = (
+      instruction: (typeof instructions)['swapInstruction']
+    ) => {
+      return new TransactionInstruction({
+        programId: new PublicKey(instruction.programId),
+        keys: instruction.accounts.map(
+          (key: {
+            pubkey: PublicKeyInitData;
+            isSigner: any;
+            isWritable: any;
+          }) => ({
+            pubkey: new PublicKey(key.pubkey),
+            isSigner: key.isSigner,
+            isWritable: key.isWritable,
+          })
+        ),
+        data: Buffer.from(instruction.data, 'base64'),
+      });
+    };
+
+    const getAddressLookupTableAccounts = async (
+      keys: string[]
+    ): Promise<AddressLookupTableAccount[]> => {
+      const addressLookupTableAccountInfos =
+        await connection.getMultipleAccountsInfo(
+          keys.map((key) => new PublicKey(key))
+        );
+
+      return addressLookupTableAccountInfos.reduce(
+        (acc, accountInfo, index) => {
+          const addressLookupTableAddress = keys[index];
+          if (accountInfo) {
+            const addressLookupTableAccount = new AddressLookupTableAccount({
+              key: new PublicKey(addressLookupTableAddress),
+              state: AddressLookupTableAccount.deserialize(accountInfo.data),
+            });
+            acc.push(addressLookupTableAccount);
+          }
+
+          return acc;
+        },
+        new Array<AddressLookupTableAccount>()
+      );
+    };
+
+    /** TODO: Manipulate your IX here. */
+    const addressLookupTableAccounts: AddressLookupTableAccount[] = [];
+    addressLookupTableAccounts.push(
+      ...(await getAddressLookupTableAccounts(addressLookupTableAddresses))
+    );
+
+    const tipIx = SystemProgram.transfer({
+      fromPubkey: walletPublicKey,
+      toPubkey: new PublicKey(
+        'DttWaMuVvTiduZRnguLF7jNxTgiMBZ1hyAumKUiL2KRL' // Jito tip account
+      ),
+      lamports: 100_000, // tip
+    });
+
+    const { blockhash } = await connection.getLatestBlockhash();
+    const messageV0 = new TransactionMessage({
+      payerKey: new PublicKey(walletPublicKey),
+      recentBlockhash: blockhash,
+      instructions: [
+        ...setupInstructions.map(deserializeInstruction),
+        deserializeInstruction(swapInstructionPayload),
+        cleanupInstruction ? deserializeInstruction(cleanupInstruction) : null,
+        tipIx,
+      ].filter(Boolean) as TransactionInstruction[],
+    }).compileToV0Message(addressLookupTableAccounts);
+    /** End of Manipulate IX */
+
+    const transaction = new VersionedTransaction(messageV0);
+
+    const signedTx = await passthroughWalletContextState.signTransaction(
+      transaction
+    );
+
+    const res = await sendTransactionJito(signedTx.serialize());
+
+    onSubmitWithIx({ txId: res });
+  };
+
+  React.useEffect(() => {
+    // @ts-expect-error stuff
+    window?.Jupiter?.init({
+      onRequestIxCallback,
+      strictTokenList: false,
+      displayMode: 'integrated',
+      integratedTargetId: 'integrated-terminal',
+      endpoint:
+        'https://mainnet.helius-rpc.com/?api-key=87f15176-5b11-42e2-92a3-4332752769a4',
+    });
+
+    // @ts-expect-error stuff
+    window?.Jupiter?.syncProps &&
+      // @ts-expect-error stuff
+      window?.Jupiter?.syncProps({ passthroughWalletContextState });
+  }, [passthroughWalletContextState]);
 
   return (
     <div className="h-full flex flex-col">
-      <div className="navbar bg-base-300 text-neutral-content flex-col md:flex-row space-y-2 md:space-y-0">
+      <div className="navbar bg-base-300 flex-col md:flex-row space-y-2 md:space-y-0">
         <div className="flex-1">
           <Link className="btn btn-ghost normal-case text-xl" to="/">
             <img
@@ -47,13 +179,10 @@ export function UiLayout({
         </div>
         <div className="flex-none space-x-2">
           <WalletButton />
-          <ClusterUiSelect />
         </div>
       </div>
-      <ClusterChecker>
-        <AccountChecker />
-      </ClusterChecker>
       <div className="flex-grow mx-4 lg:mx-auto">
+        <div id="integrated-terminal"></div>
         <Suspense
           fallback={
             <div className="text-center my-32">

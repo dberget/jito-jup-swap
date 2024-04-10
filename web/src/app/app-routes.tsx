@@ -8,9 +8,9 @@ export function AppRoutes() {
   return (
     <UiLayout links={[]}>
       {useRoutes([
-        { index: true, element: <Navigate to={'/dashboard'} replace={true} /> },
-        { path: '/dashboard', element: <DashboardFeature /> },
-        { path: '*', element: <Navigate to={'/dashboard'} replace={true} /> },
+        { index: true, element: <Navigate to={'/'} replace={true} /> },
+        { path: '/', element: <DashboardFeature /> },
+        { path: '*', element: <Navigate to={'/'} replace={true} /> },
       ])}
     </UiLayout>
   );

@@ -23,27 +23,3 @@ export async function sendTransactionJito(
     throw new Error('cannot send!');
   }
 }
-
-// export async function sendTransactionJito(
-//   serializedTransaction: Uint8Array | number[],
-//   user: string,
-//   blockhash: string
-// ) {
-//   const jitoURL = 'https://api.lenderlabs.xyz/api/bundle';
-//   const payload = {
-//     flashAmount: 0,
-//     borrower: user,
-//     blockhash: blockhash,
-//     txs: [serializedTransaction],
-//   };
-
-//   try {
-//     const response = await axios.post(jitoURL, payload, {
-//       headers: { 'Content-Type': 'application/json' },
-//     });
-//     return response.data.result;
-//   } catch (error) {
-//     console.error('Error:', error);
-//     throw new Error('cannot send!');
-//   }
-// }

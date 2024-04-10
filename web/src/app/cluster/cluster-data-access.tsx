@@ -24,7 +24,7 @@ export enum ClusterNetwork {
 export const defaultClusters: Cluster[] = [
   {
     name: 'mainnet-beta',
-    endpoint: "http://lenderlabs.helius-rpc.com",
+    endpoint: `https://rpc.helius.xyz/?api-key=8fea9de0-b3d0-4bf4-a1fb-0945dfd91d42`,
     network: ClusterNetwork.Mainnet,
   },
 ];

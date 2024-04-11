@@ -26,6 +26,7 @@ export function UiLayout({
   children: ReactNode;
   links: { label: string; path: string }[];
 }) {
+  const [tipAmount, setTipAmount] = React.useState(0.0001);
   const { publicKey: walletPublicKey } = useWallet();
   const { pathname } = useLocation();
   const passthroughWalletContextState = useWallet();
@@ -98,7 +99,6 @@ export function UiLayout({
       );
     };
 
-    /** TODO: Manipulate your IX here. */
     const addressLookupTableAccounts: AddressLookupTableAccount[] = [];
     addressLookupTableAccounts.push(
       ...(await getAddressLookupTableAccounts(addressLookupTableAddresses))
@@ -109,7 +109,7 @@ export function UiLayout({
       toPubkey: new PublicKey(
         'DttWaMuVvTiduZRnguLF7jNxTgiMBZ1hyAumKUiL2KRL' // Jito tip account
       ),
-      lamports: 100_000, // tip
+      lamports: tipAmount * 10 ** 9, // tip
     });
 
     const { blockhash } = await connection.getLatestBlockhash();
@@ -123,7 +123,6 @@ export function UiLayout({
         tipIx,
       ].filter(Boolean) as TransactionInstruction[],
     }).compileToV0Message(addressLookupTableAccounts);
-    /** End of Manipulate IX */
 
     const transaction = new VersionedTransaction(messageV0);
 
@@ -132,6 +131,8 @@ export function UiLayout({
     );
 
     const res = await sendTransactionJito(signedTx.serialize());
+
+    console.log(res);
 
     onSubmitWithIx({ txId: res });
   };
@@ -172,6 +173,17 @@ export function UiLayout({
               </li>
             ))}
           </ul>
+        </div>
+        <div className="flex flex-col mr-2">
+          <label>Tip (SOL)</label>
+
+          <input
+            type="number"
+            value={tipAmount}
+            min={0.000001}
+            step={0.0001}
+            onChange={(e) => setTipAmount(parseFloat(e.currentTarget.value))}
+          />
         </div>
         <div className="flex-none space-x-2">
           <WalletButton />

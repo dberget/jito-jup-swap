@@ -159,7 +159,13 @@ export function UiLayout({
       <div className="navbar bg-base-300 flex-col md:flex-row space-y-2 md:space-y-0">
         <div className="flex-1">
           <Link className="btn btn-ghost normal-case text-xl" to="/">
-            <h4 className="h-4 md:h-6 m-0">Bundle Swap</h4>
+            <h4 className="h-4 md:h-6 m-0">
+              <img
+                className="w-36"
+                alt="Lender Labs Logo"
+                src="https://lenderlabs.xyz/AltLogo-Stacked.svg"
+              />
+            </h4>
           </Link>
           <ul className="menu menu-horizontal px-1 space-x-2">
             {links.map(({ label, path }) => (
